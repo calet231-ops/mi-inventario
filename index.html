@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mi Inventario</title>
+<meta name="theme-color" content="#006D5B">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWkgSW52ZW50YXJpbyIsInNob3J0X25hbWUiOiJJbnZlbnRhcmlvIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmZmZmZmYiLCJ0aGVtZV9jb2xvciI6IiMwMDZENUIifQ==">
+<style>
+  :root {
+    --primary: #006D5B;
+    --primary-light: #84F0D8;
+    --bg: #FAFDFC;
+    --surface: #ffffff;
+    --text: #191C1B;
+    --text-secondary: #4A635D;
+    --border: #D8E2E0;
+    --ok: #4CAF50;
+    --low: #FF9800;
+    --out: #F44336;
+    --over: #2196F3;
+    --danger: #BA1A1A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, Roboto, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 80px;
+    overscroll-behavior: none;
+  }
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 16px 20px calc(16px + env(safe-area-inset-top, 0px));
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  header .stats { display: flex; gap: 16px; font-size: 12px; opacity: 0.9; flex-wrap: wrap; }
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 68px;
+    z-index: 99;
+    overflow-x: auto;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .search-bar {
+    padding: 12px 16px;
+    background: var(--surface);
+    position: sticky;
+    top: 112px;
+    z-index: 98;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--bg);
+  }
+  .container { padding: 8px 0 16px; }
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-secondary);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .product-card {
+    background: var(--surface);
+    margin: 8px 16px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--ok);
+  }
+  .product-card.low { border-left-color: var(--low); }
+  .product-card.out { border-left-color: var(--out); }
+  .product-card.over { border-left-color: var(--over); }
+  .pc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .pc-name { font-weight: 700; font-size: 15px; flex: 1; margin-right: 8px; }
+  .badge { font-size: 10px; padding: 3px 8px; border-radius: 8px; color: white; font-weight: 600; white-space: nowrap; }
+  .badge.ok { background: var(--ok); }
+  .badge.low { background: var(--low); }
+  .badge.out { background: var(--out); }
+  .badge.over { background: var(--over); }
+  .pc-meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .pc-bottom { display: flex; justify-content: space-between; align-items: center; }
+  .pc-price { font-size: 14px; font-weight: 600; }
+  .pc-price .cost { font-size: 11px; color: var(--text-secondary); font-weight: 400; display: block; }
+  .pc-stock { text-align: right; font-weight: 700; font-size: 15px; }
+  .pc-stock small { display: block; font-size: 10px; color: var(--text-secondary); font-weight: 400; }
+  .pc-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .btn-adj {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--primary);
+  }
+  .btn-adj:active { background: var(--primary-light); }
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 28px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 150;
+  }
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    overflow-y: auto;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--danger); color: white; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 16px; }
+  .stat-box { background: var(--surface); border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat-box .val { font-size: 22px; font-weight: 800; color: var(--primary); }
+  .stat-box .lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .cat-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 2px 4px 8px 16px;
+    color: white;
+  }
+  .cat-scroll { display: flex; overflow-x: auto; padding: 8px 0; gap: 0; }
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .scanner-view { position: fixed; inset: 0; background: black; z-index: 400; display: none; }
+  .scanner-view.show { display: block; }
+  .scanner-view video { width: 100%; height: 100%; object-fit: cover; }
+  .scanner-close { position: absolute; top: calc(20px + env(safe-area-inset-top,0px)); right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; z-index: 401; }
+  .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 250px; height: 150px; border: 3px solid #66D9C1; border-radius: 12px; }
+  .export-item { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--surface); border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📦 Mi Inventario</h1>
+  <div class="stats" id="headerStats">Cargando...</div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="productos">Productos</div>
+  <div class="tab" data-tab="alertas">Alertas</div>
+  <div class="tab" data-tab="estadisticas">Estadísticas</div>
+  <div class="tab" data-tab="categorias">Categorías</div>
+  <div class="tab" data-tab="exportar">Exportar</div>
+</div>
+
+<div class="search-bar" id="searchBarWrap">
+  <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre, código, SKU...">
+</div>
+
+<div id="content" class="container"></div>
+
+<button class="fab" id="fabAdd">+</button>
+
+<div class="modal-overlay" id="productModalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Nuevo producto</h2>
+    <div class="form-group">
+      <label>Nombre del producto *</label>
+      <input type="text" id="f_name" placeholder="Ej. Coca-Cola 600ml">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Código de barras</label>
+        <input type="text" id="f_barcode" placeholder="7501055363..." inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>SKU / Clave</label>
+        <input type="text" id="f_sku" placeholder="Opcional">
+      </div>
+    </div>
+    <button class="btn btn-secondary" style="margin-bottom:14px;" id="btnScanInForm">📷 Escanear código de barras</button>
+    <div class="form-group">
+      <label>Categoría</label>
+      <select id="f_category"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Precio de compra</label>
+        <input type="number" id="f_purchase" placeholder="0.00" step="0.01" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Precio de venta</label>
+        <input type="number" id="f_sale" placeholder="0.00" step="0.01" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Stock actual</label>
+        <input type="number" id="f_stock" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>Unidad</label>
+        <input type="text" id="f_unit" placeholder="pza, kg, caja..." value="pza">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Stock mínimo</label>
+        <input type="number" id="f_min" placeholder="5" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>Stock máximo</label>
+        <input type="number" id="f_max" placeholder="100" inputmode="numeric">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Ubicación (opcional)</label>
+      <input type="text" id="f_location" placeholder="Ej. Refrigerador 1, Estante A">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btnCancelProduct">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveProduct">Guardar</button>
+    </div>
+    <button class="btn btn-danger" style="margin-top:10px; display:none;" id="btnDeleteProduct">Eliminar producto</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="categoryModalOverlay">
+  <div class="modal">
+    <h2 id="catModalTitle">Nueva categoría</h2>
+    <div class="form-group">
+      <label>Nombre *</label>
+      <input type="text" id="c_name" placeholder="Ej. Bebidas">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <input type="color" id="c_color" value="#006D5B" style="height:44px;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btnCancelCategory">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveCategory">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="scanner-view" id="scannerView">
+  <button class="scanner-close" id="btnCloseScanner">✕</button>
+  <video id="scannerVideo" autoplay playsinline muted></video>
+  <div class="scanner-frame"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script>
+// ==================== ESTADO Y ALMACENAMIENTO ====================
+const DB_KEY = 'inventario_productos_v1';
+const CAT_KEY = 'inventario_categorias_v1';
+
+const DEFAULT_CATEGORIES = [
+  {id: 1, name: 'Bebidas', color: '#4CAF50'},
+  {id: 2, name: 'Snacks', color: '#FF9800'},
+  {id: 3, name: 'Lácteos', color: '#2196F3'},
+  {id: 4, name: 'Panadería', color: '#795548'},
+  {id: 5, name: 'Enlatados', color: '#607D8B'},
+  {id: 6, name: 'Limpieza', color: '#00BCD4'},
+  {id: 7, name: 'Cuidado Personal', color: '#E91E63'},
+  {id: 8, name: 'Otros', color: '#9E9E9E'}
+];
+
+function loadProducts() {
+  const raw = localStorage.getItem(DB_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveProducts(list) {
+  localStorage.setItem(DB_KEY, JSON.stringify(list));
+}
+function loadCategories() {
+  const raw = localStorage.getItem(CAT_KEY);
+  if (raw) return JSON.parse(raw);
+  saveCategories(DEFAULT_CATEGORIES);
+  return DEFAULT_CATEGORIES;
+}
+function saveCategories(list) {
+  localStorage.setItem(CAT_KEY, JSON.stringify(list));
+}
+
+let products = loadProducts();
+let categories = loadCategories();
+let currentTab = 'productos';
+let editingProductId = null;
+let editingCategoryId = null;
+let searchQuery = '';
+let codeReader = null;
+let scanTargetInputId = null;
+
+// ==================== HELPERS ====================
+function uid() { return Date.now() + Math.floor(Math.random()*1000); }
+function fmt(n) { return '$' + (parseFloat(n)||0).toFixed(2); }
+function catById(id) { return categories.find(c => c.id === id); }
+function stockStatus(p) {
+  if (p.stock <= 0) return 'out';
+  if (p.stock <= p.min) return 'low';
+  if (p.stock >= p.max) return 'over';
+  return 'ok';
+}
+function statusLabel(s) {
+  return {ok:'OK', low:'Stock bajo', out:'Agotado', over:'Exceso'}[s];
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ==================== RENDER HEADER ====================
+function renderHeader() {
+  const total = products.length;
+  const low = products.filter(p => stockStatus(p) === 'low').length;
+  const out = products.filter(p => stockStatus(p) === 'out').length;
+  const value = products.reduce((s,p) => s + (p.stock * p.sale), 0);
+  document.getElementById('headerStats').innerHTML =
+    `<span>📦 ${total} productos</span><span>⚠️ ${low} bajo</span><span>❌ ${out} agotado</span><span>💰 ${fmt(value)}</span>`;
+}
+
+// ==================== RENDER TABS ====================
+function renderContent() {
+  renderHeader();
+  const content = document.getElementById('content');
+  document.getElementById('searchBarWrap').style.display = currentTab === 'productos' ? 'block' : 'none';
+
+  if (currentTab === 'productos') return renderProductList(content);
+  if (currentTab === 'alertas') return renderAlerts(content);
+  if (currentTab === 'estadisticas') return renderStats(content);
+  if (currentTab === 'categorias') return renderCategories(content);
+  if (currentTab === 'exportar') return renderExport(content);
+}
+
+function filteredProducts() {
+  if (!searchQuery) return products;
+  const q = searchQuery.toLowerCase();
+  return products.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.barcode||'').includes(q) ||
+    (p.sku||'').toLowerCase().includes(q)
+  );
+}
+
+function renderProductList(content) {
+  const list = filteredProducts();
+  if (list.length === 0) {
+    content.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>${searchQuery ? 'No se encontraron productos' : 'No tienes productos aún.<br>Toca el botón + para agregar el primero.'}</div></div>`;
+    return;
+  }
+  content.innerHTML = list.map(p => productCardHtml(p)).join('');
+  attachCardHandlers();
+}
+
+function productCardHtml(p) {
+  const status = stockStatus(p);
+  const cat = catById(p.categoryId);
+  return `
+  <div class="product-card ${status}" data-id="${p.id}">
+    <div class="pc-top">
+      <div class="pc-name">${escapeHtml(p.name)}</div>
+      <div class="badge ${status}">${statusLabel(status)}</div>
+    </div>
+    <div class="pc-meta">
+      ${cat ? `<span style="color:${cat.color}">● ${escapeHtml(cat.name)}</span>` : ''}
+      ${p.barcode ? `<span>${escapeHtml(p.barcode)}</span>` : ''}
+      ${p.location ? `<span>📍 ${escapeHtml(p.location)}</span>` : ''}
+    </div>
+    <div class="pc-bottom">
+      <div class="pc-price">${fmt(p.sale)}<span class="cost">Costo: ${fmt(p.purchase)}</span></div>
+      <div class="pc-stock">${p.stock} ${escapeHtml(p.unit||'pza')}<small>Mín ${p.min} / Máx ${p.max}</small></div>
+    </div>
+    <div class="pc-actions">
+      <button class="btn-adj" data-action="adj" data-delta="-1" data-id="${p.id}">-1</button>
+      <button class="btn-adj" data-action="adj" data-delta="1" data-id="${p.id}">+1</button>
+      <button class="btn-adj" data-action="adj" data-delta="5" data-id="${p.id}">+5</button>
+      <button class="btn-adj" data-action="edit" data-id="${p.id}">✏️ Editar</button>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+function attachCardHandlers() {
+  document.querySelectorAll('[data-action="adj"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const delta = parseInt(btn.dataset.delta);
+      const p = products.find(x => x.id === id);
+      if (p) {
+        p.stock = Math.max(0, p.stock + delta);
+        saveProducts(products);
+        renderContent();
+        showToast(delta > 0 ? `+${delta} agregado` : `${delta} restado`);
+      }
+    };
+  });
+  document.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openProductModal(parseInt(btn.dataset.id));
+    };
+  });
+}
+
+// ==================== ALERTAS ====================
+function renderAlerts(content) {
+  const low = products.filter(p => stockStatus(p) === 'low');
+  const out = products.filter(p => stockStatus(p) === 'out');
+  const over = products.filter(p => stockStatus(p) === 'over');
+  let html = '';
+  if (out.length) html += `<h3 style="padding:12px 16px 4px;font-size:14px;color:var(--out);">❌ Agotados (${out.length})</h3>` + out.map(productCardHtml).join('');
+  if (low.length) html += `<h3 style="padding:12px 16px 4px;font-size:14px;color:var(--low);">⚠️ Stock bajo (${low.length})</h3>` + low.map(productCardHtml).join('');
+  if (over.length) html += `<h3 style="padding:12px 16px 4px;font-size:14px;color:var(--over);">📈 Exceso de stock (${over.length})</h3>` + over.map(productCardHtml).join('');
+  if (!html) html = `<div class="empty-state"><div class="icon">✅</div><div>Todo tu inventario está en niveles óptimos</div></div>`;
+  content.innerHTML = html;
+  attachCardHandlers();
+}
+
+// ==================== ESTADÍSTICAS ====================
+function renderStats(content) {
+  const total = products.length;
+  const totalStock = products.reduce((s,p) => s + p.stock, 0);
+  const totalValue = products.reduce((s,p) => s + p.stock*p.sale, 0);
+  const totalCost = products.reduce((s,p) => s + p.stock*p.purchase, 0);
+  const profit = totalValue - totalCost;
+  const lowCount = products.filter(p => stockStatus(p)==='low').length;
+  const outCount = products.filter(p => stockStatus(p)==='out').length;
+
+  const byCat = {};
+  products.forEach(p => {
+    const c = catById(p.categoryId);
+    const name = c ? c.name : 'Sin categoría';
+    byCat[name] = (byCat[name]||0) + p.stock;
+  });
+  const catRows = Object.entries(byCat).sort((a,b)=>b[1]-a[1])
+    .map(([name,stock]) => `<div class="export-item"><span>${escapeHtml(name)}</span><b>${stock} unidades</b></div>`).join('');
+
+  content.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-box"><div class="val">${total}</div><div class="lbl">Productos totales</div></div>
+      <div class="stat-box"><div class="val">${totalStock}</div><div class="lbl">Unidades en stock</div></div>
+      <div class="stat-box"><div class="val">${fmt(totalValue)}</div><div class="lbl">Valor de inventario</div></div>
+      <div class="stat-box"><div class="val">${fmt(profit)}</div><div class="lbl">Ganancia potencial</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--low)">${lowCount}</div><div class="lbl">Stock bajo</div></div>
+      <div class="stat-box"><div class="val" style="color:var(--out)">${outCount}</div><div class="lbl">Agotados</div></div>
+    </div>
+    <h3 style="padding:8px 16px;font-size:14px;">Unidades por categoría</h3>
+    <div style="padding:0 16px;">${catRows || '<p style="color:var(--text-secondary);font-size:13px;">Sin datos</p>'}</div>
+  `;
+}
+
+// ==================== CATEGORÍAS ====================
+function renderCategories(content) {
+  content.innerHTML = `
+    <div style="padding:12px 16px;">
+      <button class="btn btn-primary" id="btnAddCategory" style="margin-bottom:12px;">+ Nueva categoría</button>
+    </div>
+    ${categories.map(c => {
+      const count = products.filter(p => p.categoryId === c.id).length;
+      return `<div class="export-item">
+        <div><span style="color:${c.color};font-size:18px;">●</span> ${escapeHtml(c.name)} <small style="color:var(--text-secondary)">(${count} productos)</small></div>
+        <button data-catid="${c.id}" class="btn-adj" style="width:auto;padding:6px 12px;" data-action="delcat">🗑️</button>
+      </div>`;
+    }).join('')}
+  `;
+  document.getElementById('btnAddCategory').onclick = () => openCategoryModal();
+  document.querySelectorAll('[data-action="delcat"]').forEach(btn => {
+    btn.onclick = () => {
+      const id = parseInt(btn.dataset.catid);
+      const count = products.filter(p => p.categoryId === id).length;
+      if (count > 0) { showToast(`No se puede eliminar: tiene ${count} productos`); return; }
+      categories = categories.filter(c => c.id !== id);
+      saveCategories(categories);
+      renderContent();
+    };
+  });
+}
+
+function openCategoryModal() {
+  document.getElementById('c_name').value = '';
+  document.getElementById('c_color').value = '#006D5B';
+  document.getElementById('categoryModalOverlay').classList.add('show');
+}
+
+// ==================== EXPORTAR ====================
+function renderExport(content) {
+  content.innerHTML = `
+    <div style="padding:16px;">
+      <div class="export-item" id="expAll"><span>📄 Exportar inventario completo (CSV)</span><span>→</span></div>
+      <div class="export-item" id="expLow"><span>⚠️ Exportar reporte de stock bajo (CSV)</span><span>→</span></div>
+      <div class="export-item" id="expCats"><span>🏷️ Exportar categorías (CSV)</span><span>→</span></div>
+      <div class="export-item" id="expBackup"><span>💾 Respaldo completo (JSON)</span><span>→</span></div>
+      <div class="export-item" id="impBackup"><span>📥 Restaurar respaldo (JSON)</span><span>→</span></div>
+    </div>
+  `;
+  document.getElementById('expAll').onclick = () => exportCsv(products, 'inventario');
+  document.getElementById('expLow').onclick = () => exportCsv(products.filter(p => stockStatus(p) !== 'ok'), 'stock_bajo');
+  document.getElementById('expCats').onclick = () => exportCategoriesCsv();
+  document.getElementById('expBackup').onclick = () => exportBackup();
+  document.getElementById('impBackup').onclick = () => importBackup();
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportCsv(list, prefix) {
+  let csv = 'Nombre,Codigo,SKU,Categoria,PrecioCompra,PrecioVenta,Stock,Min,Max,Unidad,Ubicacion,Estado\n';
+  list.forEach(p => {
+    const cat = catById(p.categoryId);
+    csv += `"${p.name}","${p.barcode||''}","${p.sku||''}","${cat?cat.name:''}",${p.purchase},${p.sale},${p.stock},${p.min},${p.max},"${p.unit}","${p.location||''}","${statusLabel(stockStatus(p))}"\n`;
+  });
+  downloadFile(`${prefix}_${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv');
+  showToast('CSV exportado');
+}
+
+function exportCategoriesCsv() {
+  let csv = 'Nombre,Color,Productos\n';
+  categories.forEach(c => {
+    const count = products.filter(p => p.categoryId === c.id).length;
+    csv += `"${c.name}","${c.color}",${count}\n`;
+  });
+  downloadFile(`categorias_${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv');
+  showToast('CSV exportado');
+}
+
+function exportBackup() {
+  const data = JSON.stringify({products, categories}, null, 2);
+  downloadFile(`respaldo_inventario_${new Date().toISOString().slice(0,10)}.json`, data, 'application/json');
+  showToast('Respaldo exportado');
+}
+
+function importBackup() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.products) { products = data.products; saveProducts(products); }
+        if (data.categories) { categories = data.categories; saveCategories(categories); }
+        renderContent();
+        showToast('Respaldo restaurado correctamente');
+      } catch (err) { showToast('Error: archivo inválido'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ==================== MODAL PRODUCTO ====================
+function populateCategorySelect() {
+  const sel = document.getElementById('f_category');
+  sel.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+
+function openProductModal(id = null) {
+  populateCategorySelect();
+  editingProductId = id;
+  const deleteBtn = document.getElementById('btnDeleteProduct');
+  if (id) {
+    const p = products.find(x => x.id === id);
+    document.getElementById('modalTitle').textContent = 'Editar producto';
+    document.getElementById('f_name').value = p.name;
+    document.getElementById('f_barcode').value = p.barcode || '';
+    document.getElementById('f_sku').value = p.sku || '';
+    document.getElementById('f_category').value = p.categoryId;
+    document.getElementById('f_purchase').value = p.purchase;
+    document.getElementById('f_sale').value = p.sale;
+    document.getElementById('f_stock').value = p.stock;
+    document.getElementById('f_unit').value = p.unit;
+    document.getElementById('f_min').value = p.min;
+    document.getElementById('f_max').value = p.max;
+    document.getElementById('f_location').value = p.location || '';
+    deleteBtn.style.display = 'block';
+    deleteBtn.onclick = () => {
+      if (confirm('¿Eliminar este producto?')) {
+        products = products.filter(x => x.id !== id);
+        saveProducts(products);
+        closeProductModal();
+        renderContent();
+        showToast('Producto eliminado');
+      }
+    };
+  } else {
+    document.getElementById('modalTitle').textContent = 'Nuevo producto';
+    ['f_name','f_barcode','f_sku','f_location'].forEach(id2 => document.getElementById(id2).value = '');
+    document.getElementById('f_purchase').value = '';
+    document.getElementById('f_sale').value = '';
+    document.getElementById('f_stock').value = 0;
+    document.getElementById('f_unit').value = 'pza';
+    document.getElementById('f_min').value = 5;
+    document.getElementById('f_max').value = 100;
+    deleteBtn.style.display = 'none';
+  }
+  document.getElementById('productModalOverlay').classList.add('show');
+}
+
+function closeProductModal() {
+  document.getElementById('productModalOverlay').classList.remove('show');
+}
+
+function saveProduct() {
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { showToast('El nombre es obligatorio'); return; }
+  const data = {
+    name,
+    barcode: document.getElementById('f_barcode').value.trim(),
+    sku: document.getElementById('f_sku').value.trim(),
+    categoryId: parseInt(document.getElementById('f_category').value),
+    purchase: parseFloat(document.getElementById('f_purchase').value) || 0,
+    sale: parseFloat(document.getElementById('f_sale').value) || 0,
+    stock: parseInt(document.getElementById('f_stock').value) || 0,
+    unit: document.getElementById('f_unit').value.trim() || 'pza',
+    min: parseInt(document.getElementById('f_min').value) || 0,
+    max: parseInt(document.getElementById('f_max').value) || 100,
+    location: document.getElementById('f_location').value.trim()
+  };
+  if (editingProductId) {
+    const idx = products.findIndex(p => p.id === editingProductId);
+    products[idx] = {...products[idx], ...data};
+    showToast('Producto actualizado');
+  } else {
+    products.push({id: uid(), ...data});
+    showToast('Producto agregado');
+  }
+  saveProducts(products);
+  closeProductModal();
+  renderContent();
+}
+
+// ==================== ESCÁNER DE CÓDIGO DE BARRAS ====================
+function openScanner(targetInputId) {
+  scanTargetInputId = targetInputId;
+  document.getElementById('scannerView').classList.add('show');
+  const videoElem = document.getElementById('scannerVideo');
+  codeReader = new ZXing.BrowserMultiFormatReader();
+  codeReader.listVideoInputDevices().then(devices => {
+    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length-1];
+    codeReader.decodeFromVideoDevice(backCam ? backCam.deviceId : undefined, videoElem, (result, err) => {
+      if (result) {
+        document.getElementById(scanTargetInputId).value = result.getText();
+        closeScanner();
+        showToast('Código escaneado: ' + result.getText());
+      }
+    });
+  }).catch(() => {
+    showToast('No se pudo acceder a la cámara');
+    closeScanner();
+  });
+}
+
+function closeScanner() {
+  document.getElementById('scannerView').classList.remove('show');
+  if (codeReader) { codeReader.reset(); codeReader = null; }
+}
+
+// ==================== EVENTOS GLOBALES ====================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    renderContent();
+  };
+});
+
+document.getElementById('searchInput').oninput = (e) => {
+  searchQuery = e.target.value;
+  renderContent();
+};
+
+document.getElementById('fabAdd').onclick = () => {
+  if (currentTab === 'categorias') { openCategoryModal(); }
+  else { openProductModal(); }
+};
+
+document.getElementById('btnCancelProduct').onclick = closeProductModal;
+document.getElementById('btnSaveProduct').onclick = saveProduct;
+document.getElementById('btnScanInForm').onclick = () => openScanner('f_barcode');
+document.getElementById('btnCloseScanner').onclick = closeScanner;
+
+document.getElementById('btnCancelCategory').onclick = () => {
+  document.getElementById('categoryModalOverlay').classList.remove('show');
+};
+document.getElementById('btnSaveCategory').onclick = () => {
+  const name = document.getElementById('c_name').value.trim();
+  if (!name) { showToast('El nombre es obligatorio'); return; }
+  const color = document.getElementById('c_color').value;
+  categories.push({id: uid(), name, color});
+  saveCategories(categories);
+  document.getElementById('categoryModalOverlay').classList.remove('show');
+  renderContent();
+  showToast('Categoría creada');
+};
+
+// Cerrar modales tocando fuera
+document.getElementById('productModalOverlay').onclick = (e) => {
+  if (e.target.id === 'productModalOverlay') closeProductModal();
+};
+document.getElementById('categoryModalOverlay').onclick = (e) => {
+  if (e.target.id === 'categoryModalOverlay') document.getElementById('categoryModalOverlay').classList.remove('show');
+};
+
+// ==================== INICIO ====================
+renderContent();
+
+// Registrar Service Worker simple para funcionar offline (opcional, requiere HTTPS)
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('fetch', e => {});
+  `;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+</script>
+</body>
+</html>
